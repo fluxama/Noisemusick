@@ -1,0 +1,53 @@
+//
+// Prefix header for all source files 
+//
+
+#import <Availability.h>
+
+#ifndef __IPHONE_3_0
+#warning "This project uses features only available in iPhone SDK 3.0 and later."
+#endif
+
+#ifdef __OBJC__
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+#endif
+
+// Control types
+#define CONTROL_TAG (555)
+#define POT1 (1)
+#define DISCRETE_POT (2)
+#define TWO_POS_SWITCH (3)
+
+#define MOMENTARY_SWITCH (10)
+#define TOGGLE_BUTTON (11)
+#define TOUCH_AREA (12)
+#define ROUND_TOUCH_AREA (13)
+#define TOGGLE_TOUCH (14)
+#define PLASMA_MULTI_TOUCH (15)
+
+
+//  Determine device
+#ifdef UI_USER_INTERFACE_IDIOM
+#define IS_IPAD() (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
+#else
+#define IS_IPAD() (NO)
+#endif
+
+// Defines for translating iPhone positioning to iPad
+// 480 point wide -> 1024 points wide
+// = 2.13 multiplier
+#define IPAD_MULT (2.13f)
+#define IPAD_BOT_TRIM (45)
+
+int HALF_DROP_SHADOW_W;
+
+int THUMBW;
+int THUMBH;
+int PADW;
+int SCREEN_CENTER_X;
+int SCREEN_CENTER_Y;
+int BUTTON_Y;
+int ABOUT_IMAGE_WIDTH;
+
+int current_item;
