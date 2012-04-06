@@ -1,0 +1,22 @@
+Noisemusick App 
+www.fluxama.com
+
+This is the code for the Noisemusick iPhone/iPad app available at www.fluxama.com. The license info is in the Noisemusick-LICENSE.txt file, but it is basically just a standard BSD open source license; feel free to reuse and remix code as you wish (just look at the license). 
+
+This app was created by Elliot Clapp, Shawn Greenlee, and Shawn Wallace over the course of 9 months of Tuesday evenings from 2011-2012.
+
+Dependencies:
+
+1. libpd: This is the portable version of Pure Data created by Peter Brinkmann and available here:
+
+  http://www.libpd.cc
+
+Follow the instructions there and put the distibution in the directory pd-for-ios right next to the Xcode project.
+
+2. Cocos2D 2.0: We used the excellent Cocos2d game engine for sprites and whatnot. This project actually has a complete Cocos2d install in the libs directory so you don't need to do anything else. Requires 2.0 for the shader support.
+
+Feel free to email fluxama@gmail.com with any questions or problems.
+
+
+
+ 
