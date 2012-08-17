@@ -1,0 +1,26 @@
+noise-040loadingscreen.png    Default.png    		960x640 / 326 ppi       -- Change copyright "Fluxa"->"Fluxama"
+																			-- Change dimensions from 960x641 to 960x640	
+																			-- Rotate 90 deg CC
+															
+noise-04-switch-on (retina)	  twoPosSwitch1-hd.png	61x44 / 326ppi
+noise-04-switch-on (lowres)	  twoPosSwitch1.png		61x44 / 163ppi
+
+noise-04-switch-off (retina)	  twoPosSwitch0-hd.png	61x44 / 326ppi
+noise-04-switch-off (lowres)	  twoPosSwitch0.png		61x44 / 163ppi
+
+icon-noisemaker-3g.png		  Icon@2x.png           114x114 / 163ppi
+icon-noisemaker-3g.png		  Icon.png              57x57 / 163ppi
+icon-noisemaker-3g.png		  Icon-72.png           72x72 / 163ppi
+icon-noisemaker-3g.png		  Icon-Small.png	    29x29 / 163ppi
+icon-noisemaker-3g.png		  Icon-Small.png	    58x58 / 163ppi
+icon-noisemaker-3g.png		  Icon-Small-50.png	    50x50 / 163ppi
+icon-noisemaker-3g.png		  iTunesArtwork         512x512 / 163ppi       -- no png extension
+
+noise-04-background.png	      Noisekit.png			480x320 / 163 ppi	
+noise-04-background.png       Noisekit-hd.png		960x640 / 326 ppi
+
+Pot osc 1		187, 211
+Pot osc 2		290, 210
+Hold switch		237, 52
+LED  			239, 110
+3 touch areas

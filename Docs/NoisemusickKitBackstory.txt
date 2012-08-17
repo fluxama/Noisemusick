@@ -1,0 +1,38 @@
+* A Little Background *
+
+The 555 Timer is one of the oldest integrated circuits still available. Its hardiness -- and the fact that you can drive a speaker directly from the output on pin 3 -- have made it a natural choice for electronic music experiments in noise since the seventies. This instrument uses two 555 timers to create controllable chaotic noise that can be used in a multitude of performance and recording situations. 
+
+The original circuit boards were inspired by a workshop presented by Jessica Piper (nee Rylan) in the early 21st Century. 
+
+<Jessica Rylan BPNG image>
+Caption: The touch sensitive version of BPNG synth.
+
+The Noisemusick Kit was adapted into a PCB and bag of parts that was suitable for the masses. After a year of poor sales, the remaining 5 million Noisemusick Kit circuit boards were buried in a landfill in New Mexico.
+
+* ABout the Circuit *
+The schematic is similar to Forrest Mims' Atari Punk Console, as featured in the excellent 555 Timer Mini-notebook:
+
+<mims image>
+
+(Describe the way that 555 timer works)
+
+<image of the way a 555 timer works>
+
+In the Noisemusick Kit, the circuit uses your body instead of the input resistor; most people have a skin resistance in the megaohm range (on the outside at least; kiloohms once you break the skin). Since your body is essentially a big bag of salty water, you'll introduce some capacitance into the circuit for additional fun. The capacitors are sized to bring the base frequency into the audible range, although sometimes the instrument can scream past 20kHz. 
+
+<Noisemusick Kit schematic>
+
+The original Noisemusick schematic includes two infrared sensors for additional chaos on the inputs. Since your mobile device doesn't have an infrared input, the circuit has been modified accordingly.
+
+* How to Play *
+
+
+
+* Also Heard On *
+
+You may have heard the instrument before, on the following recordings:
+
+- One of many chaotic inputs on Meat The Beatless by The Beatless (2006)
+- Massimo Russolo (Luigi Russolo's grandson) used a Noisekit in a 2003 performance at STEIM
+- It may appear on the massive 62 disc compilation History of Electronic / Electroacoustic Music [1937-2001] (it's hard to tell)
+

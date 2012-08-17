@@ -1,0 +1,15 @@
+The Noisemusick app is a collection of THREE controllable synthesizers that generate interesting chaotic sounds. Have fun creating sonic bedlam, exploring weird soundscapes, or use it to GREAT EFFECT in your live performances and recordings. It's squonky electric FUN for the whole family! 
+
+With Noisemusick you can:
+
+* Choose a sound to match your mood: blue, green, or pink!
+* Practice and probe to find interesting interactions of sound!
+* Discover weird oscillations! 
+* Use it as a raw input to other filters and effects!
+* Run on an iphone or iPad; it's a Universal app!
+
+To start making sounds with the Noisemusick app, your body has to complete the circuit between the touch pads. Pressing the pads in different combinations will generate different frequencies and modulations. By lifting a finger or sliding the hold switch you can create rhythmic patterns of noise. Move your fingers to change the resistance between your finger and the pads, which changes the frequency and beating of the tone. On each board the knobs change the quality of the tone in different ways.
+
+This is a Universal app from the Fluxama collective in Providence RI.
+
+synthesizer synth music noise diy electronics circuit
