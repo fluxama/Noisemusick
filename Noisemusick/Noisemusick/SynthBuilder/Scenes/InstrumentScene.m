@@ -30,40 +30,94 @@
         [self addChild:layer z:1 ]; 
         //[layer autorelease];
 		instrument_name = [NSString alloc];
+        
+        // Nav Menu
+        
         nav_menu = [NavMenu node];
-        if (IS_IPAD()) {
-            //[nav_menu setPosition:ccp(455*IPAD_MULT, 25*IPAD_MULT)]; 
-            [nav_menu setPosition:ccp(1000, 65)];
+        if (IS_IPAD) {
+            [nav_menu setPosition:ccp(933, 25)];
+        } else if (IS_IPHONE_5) {
+            [nav_menu setPosition:ccp(498, 15)];
         } else {
-            //[nav_menu setPosition:ccp(455, 25)];
-            //[nav_menu setScale:.9];
-            [nav_menu setPosition:ccp(465, 50)];
+            [nav_menu setPosition:ccp(410, 15)];
         }
         [self addChild:nav_menu z:50];
         [nav_menu moveToClosedState];
         
-        helpMenu = [CCMenu menuWithItems:nil ];
+        // Create the Info Menu
+        infoLayer = [CCSprite spriteWithFile:@"menuBackground.png"];
+        [infoLayer setPosition:ccp(SCREEN_CENTER_X, SCREEN_CENTER_Y)];
+        [infoLayer setVisible:false];
+        [self addChild:infoLayer z:100];
         
-        CCMenuItemImage *exitHelpButton = [CCMenuItemImage 
-                                       itemWithNormalImage:@"navMenuExit.png"
-                                       selectedImage:@"navMenuExit.png"
-                                       target:self
-                                       selector:@selector(toggleHelp:)];
+        infoMenu1 = [CCMenu menuWithItems:nil ];
+        infoMenu2 = [CCMenu menuWithItems:nil ];
         
-        [helpMenu addChild:exitHelpButton];
-		if (IS_IPAD()) {
-            [helpMenu setPosition:ccp(1000, 25)]; 
+        CCMenuItemImage *infoNM = [CCMenuItemImage
+                                   itemWithNormalImage:@"InfoNM.png"
+                                   selectedImage:@"InfoNMSelected.png"
+                                   target:self
+                                   selector:@selector(gotoNM:)];
+        CCMenuItemImage *infoDrom = [CCMenuItemImage
+                                     itemWithNormalImage:@"InfoDrom.png"
+                                     selectedImage:@"InfoDromSelected.png"
+                                     target:self
+                                     selector:@selector(gotoDrom:)];
+        
+        CCMenuItemImage *infoFB = [CCMenuItemImage
+                                   itemWithNormalImage:@"InfoFacebook.png"
+                                   selectedImage:@"InfoFacebookSelected.png"
+                                   target:self
+                                   selector:@selector(gotoFB:)];
+        
+        CCMenuItemImage *infoTwitter = [CCMenuItemImage
+                                        itemWithNormalImage:@"InfoTwitter.png"
+                                        selectedImage:@"InfoTwitterSelected.png"
+                                        target:self
+                                        selector:@selector(gotoTwitter:)];
+        
+        CCMenuItemImage *infoWeb = [CCMenuItemImage
+                                    itemWithNormalImage:@"InfoFluxama.png"
+                                    selectedImage:@"InfoFluxamaSelected.png"
+                                    target:self
+                                    selector:@selector(gotoWeb:)];
+        
+        [infoMenu1 addChild:infoNM];
+        [infoMenu1 addChild:infoDrom];
+        
+        [infoMenu2 addChild:infoFB];
+        [infoMenu2 addChild:infoTwitter];
+        [infoMenu2 addChild:infoWeb];
+        
+        [infoMenu1 alignItemsHorizontallyWithPadding:5];
+        [infoMenu1 setVisible:false];
+        [infoMenu1 setPosition:ccp(SCREEN_CENTER_X, SCREEN_CENTER_Y+INFO_ICON_H/2-3)];
+        [self addChild:infoMenu1 z:150];
+        
+        [infoMenu2 alignItemsHorizontallyWithPadding:5];
+        [infoMenu2 setVisible:false];
+        [infoMenu2 setPosition:ccp(SCREEN_CENTER_X, SCREEN_CENTER_Y-INFO_ICON_H/2-3)];
+        [self addChild:infoMenu2 z:150];
+        
+        exitButtonMenu = [CCMenu menuWithItems:nil ];
+        [exitButtonMenu setVisible:false];
+        CCMenuItemImage *exitInfoButton = [CCMenuItemImage
+                                           itemWithNormalImage:@"navMenuExit.png"
+                                           selectedImage:@"navMenuExit.png"
+                                           target:self
+                                           selector:@selector(toggleInfo:)];
+        [exitButtonMenu addChild:exitInfoButton];
+        [exitButtonMenu alignItemsHorizontallyWithPadding:0];
+        if (IS_IPAD) {
+            [exitButtonMenu setPosition:ccp(1000, 25)];
+        } else if (IS_IPHONE_5) {
+            [exitButtonMenu setPosition:ccp(551, 15)];
         } else {
-		    [helpMenu setPosition:ccp(465, 20)];
+		    [exitButtonMenu setPosition:ccp(463, 15)];
         }
-        [helpMenu setVisible:false];
-        [self addChild:helpMenu z:150];
+        [self addChild:exitButtonMenu z:150];
         
-        helpLayer = [CCSprite spriteWithFile:@"AboutLayer.png"];
-        [helpLayer setPosition:ccp(SCREEN_CENTER_X, SCREEN_CENTER_Y)];
-        [helpLayer setVisible:false];
-        [self addChild:helpLayer z:100];
-        
+        // End Nav menu
     }
     return self;
 }
@@ -71,16 +125,47 @@
 -(void) loadInstrument {
     [layer loadInstrument:instrument_name];
     CCSprite *background = [CCSprite spriteWithFile:[NSString stringWithFormat:@"%@.png",instrument_name]];
-    [background setAnchorPoint:ccp(0.0f, 0.0f)];
+    
+    [background setPosition:ccp(SCREEN_CENTER_X, SCREEN_CENTER_Y)];
+    
     [layer addChild:background z:-10];
 }
 
--(void) toggleHelp: (id)sender {
-    helpMenu.visible = !helpLayer.visible;
-    helpLayer.visible = !helpLayer.visible;
+-(void) toggleInfo: (id)sender {
+    infoMenu1.visible = !infoLayer.visible;
+    infoMenu2.visible = !infoLayer.visible;
+    exitButtonMenu.visible = !exitButtonMenu.visible;
+    infoLayer.visible = !infoLayer.visible;
     layer.visible = !layer.visible;
     nav_menu.visible = !nav_menu.visible;
 }
+
+-(void) toggleHelp: (id)sender {
+    [layer toggleHelp:sender];
+}
+
+-(void) toggleNav {
+    nav_menu.visible = !nav_menu.visible;
+}
+
+- (void) gotoNM: (id)sender {
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"itms-apps://ax.itunes.apple.com/WebObjects/MZStore.woa/wa/viewContentsUserReviews?type=Purple+Software&id=513770094"]];
+}
+- (void) gotoDrom: (id)sender {
+    [[UIApplication sharedApplication]
+     openURL:[NSURL URLWithString:@"itms-apps://itunes.com/apps/Drom"]];
+}
+
+- (void) gotoFB: (id)sender {
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://www.facebook.com/fluxamacorp"]];
+}
+- (void) gotoTwitter: (id)sender {
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"http://www.twitter.com/fluxama"]];
+}
+- (void) gotoWeb: (id)sender {
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"http://www.fluxama.com"]];
+}
+
 
 - (void) dealloc
 {	
@@ -108,7 +193,7 @@ int selectedControl;
 -(id) init {
 	if( (self=[super init] )) {
   
-		// enable touches
+        // enable touches
        [self setIsTouchEnabled:YES];
         
 		// enable accelerometer
@@ -137,20 +222,51 @@ int selectedControl;
 	}
 	//[self openPatch:instrument_def.patch_name];
 
-    [(AppController*)[[UIApplication sharedApplication] delegate] turnOnSound];
+   // [(AppController*)[[UIApplication sharedApplication] delegate] turnOnSound];
     //LEDLayer = [CCSprite spriteWithFile:[NSString stringWithFormat:@"%@LedLit.png",instrument_def.name]];
     LEDLayer = [CCSprite spriteWithFile:@"NoiseKitLedLit.png"];
     //[LEDLayer setBlendFunc: (ccBlendFunc) { GL_SRC_ALPHA, GL_ONE }];
     [LEDLayer setBlendFunc: (ccBlendFunc) { GL_ONE, GL_ONE_MINUS_SRC_COLOR }];
     
-    if (IS_IPAD()) {
-        LEDLayer.position = ccp(241*IPAD_MULT-1,106*IPAD_MULT+IPAD_BOT_TRIM-1); 
+    if (IS_IPAD) {
+        LEDLayer.position = ccp(241*IPAD_MULT-1,106*IPAD_MULT+IPAD_BOT_TRIM-1);
+    } else if (IS_IPHONE_5) {
+        LEDLayer.position = ccp(240+IPHONE_5_MARGIN,106);
     } else {
         LEDLayer.position = ccp(240,106);
     }
     LEDState = FALSE;
     [self addChild:LEDLayer z:-3];
     //[LEDLayer autorelease];
+    // Create the Help Menu
+    
+    helpMenu = [CCMenu menuWithItems:nil ];
+    
+    CCMenuItemImage *exitHelpButton = [CCMenuItemImage
+                                       itemWithNormalImage:@"navMenuExit.png"
+                                       selectedImage:@"navMenuExit.png"
+                                       target:self
+                                       selector:@selector(toggleHelp:)];
+    [helpMenu addChild:exitHelpButton];
+    [helpMenu alignItemsHorizontallyWithPadding:0];
+    
+    if (IS_IPAD) {
+        [helpMenu setPosition:ccp(1000, 25)];
+        
+    } else if (IS_IPHONE_5) {
+        [helpMenu setPosition:ccp(551, 15)];
+    } else {
+        [helpMenu setPosition:ccp(463, 15)];
+    }
+    [helpMenu setVisible:false];
+    [self addChild:helpMenu z:500];
+    
+    helpLayer = [HelpLayer node];
+    //[helpLayer setAnchorPoint:ccp(0.5f, 0.5f)];
+    [helpLayer setPosition:ccp(0, 0)];
+    [helpLayer setVisible:false];
+    
+    [self addChild:helpLayer z:100];
 }
 
 - (void) draw {
@@ -275,6 +391,9 @@ int selectedControl;
 }
 
 -(void) toggleHelp: (id)sender {
+    helpMenu.visible = !helpLayer.visible;
+    helpLayer.visible = !helpLayer.visible;
+    [(InstrumentScene *)self.parent toggleNav];
 }
 
 -(void) nothing:(id)sender {
@@ -287,7 +406,6 @@ int selectedControl;
         [[instrument_def.interactive_inputs objectAtIndex:i] sendOffValues];
 		[[instrument_def.interactive_inputs objectAtIndex:i] sendZeroValues];
 	}
-    [(AppController*)[[UIApplication sharedApplication] delegate] turnOffSound];
     [PdBase sendFloat:0.0f toReceiver:@"kit_number"];
     //CCLOG(@"Dealloc InstrumentLayer");
     //[self closePatch];

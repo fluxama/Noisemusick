@@ -94,13 +94,17 @@ and when to execute the Scenes.
 	NSUInteger totalFrames_;
 	ccTime secondsPerFrame_;
 
-	ccTime accumDt_;
-	ccTime frameRate_;
+	ccTime		accumDt_;
+	ccTime		frameRate_;
 	CCLabelAtlas *FPSLabel_;
 	CCLabelAtlas *SPFLabel_;
+	CCLabelAtlas *drawsLabel_;
 
 	/* is the running scene paused */
 	BOOL isPaused_;
+    
+    /* Is the director running */
+    BOOL isAnimating_;
 
 	/* The running scene */
 	CCScene *runningScene_;
@@ -145,6 +149,9 @@ and when to execute the Scenes.
 
 	/* action manager associated with this director */
 	CCActionManager *actionManager_;
+	
+	/*  OpenGLView. On iOS it is a copy of self.view */
+	CCGLView		*view_;
 }
 
 /** returns the cocos2d thread.
@@ -163,6 +170,8 @@ and when to execute the Scenes.
 @property (nonatomic,readwrite,assign) BOOL nextDeltaTimeZero;
 /** Whether or not the Director is paused */
 @property (nonatomic,readonly) BOOL isPaused;
+/** Whether or not the Director is active (animating) */
+@property (nonatomic,readonly) BOOL isAnimating;
 /** Sets an OpenGL projection */
 @property (nonatomic,readwrite) ccDirectorProjection projection;
 /** How many frames were called since the director started */
@@ -204,12 +213,6 @@ and when to execute the Scenes.
 
 
 #pragma mark Director - Stats
-
-/** Whether or not to display the FPS on the bottom-left corner
- @deprecated Use setDisplayStats:YES instead
- */
--(void) setDisplayFPS:(BOOL)display DEPRECATED_ATTRIBUTE;
-
 
 #pragma mark Director - Win Size
 /** returns the size of the OpenGL view in points */
@@ -258,6 +261,13 @@ and when to execute the Scenes.
  * ONLY call it if there is a running scene.
  */
 - (void) popScene;
+
+/**Pops out all scenes from the queue until the root scene in the queue.
+ * This scene will replace the running one.
+ * The running scene will be deleted. If there are no more scenes in the stack the execution is terminated.
+ * ONLY call it if there is a running scene.
+ */
+- (void) popToRootScene;
 
 /** Replaces the running scene with a new one. The running scene is terminated.
  * ONLY call it if there is a running scene.
@@ -330,3 +340,5 @@ and when to execute the Scenes.
 -(void) createStatsLabel;
 @end
 
+// optimization. Should only be used to read it. Never to write it.
+extern NSUInteger __ccNumberOfDraws;

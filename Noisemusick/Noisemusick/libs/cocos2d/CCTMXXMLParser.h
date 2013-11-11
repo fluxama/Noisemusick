@@ -57,11 +57,16 @@ enum {
 	TMXPropertyTile
 };
 
+typedef enum ccTMXTileFlags_ {
+	kCCTMXTileHorizontalFlag		= 0x80000000,
+	kCCTMXTileVerticalFlag			= 0x40000000,
+	kCCTMXTileDiagonalFlag			= 0x20000000,
+
+	kCCFlipedAll					= (kCCTMXTileHorizontalFlag|kCCTMXTileVerticalFlag|kCCTMXTileDiagonalFlag),
+	kCCFlippedMask					= ~(kCCFlipedAll),
+} ccTMXTileFlags;
+
 // Bits on the far end of the 32-bit global tile ID (GID's) are used for tile flags
-#define kCCFlippedHorizontallyFlag		0x80000000
-#define kCCFlippedVerticallyFlag		0x40000000
-#define kCCFlippedAntiDiagonallyFlag	0x20000000
-#define kCCFlippedMask				~(kCCFlippedHorizontallyFlag|kCCFlippedVerticallyFlag|kCCFlippedAntiDiagonallyFlag)
 
 /* CCTMXLayerInfo contains the information about the layers like:
  - Layer name
@@ -145,16 +150,7 @@ enum {
  This information is obtained from the TMX file.
 
  */
-#ifdef __CC_PLATFORM_IOS
-#if defined(__IPHONE_4_0)
 @interface CCTMXMapInfo : NSObject <NSXMLParserDelegate>
-#else
-@interface CCTMXMapInfo : NSObject
-#endif
-
-#elif defined(__CC_PLATFORM_MAC)
-@interface CCTMXMapInfo : NSObject <NSXMLParserDelegate>
-#endif
 {
 	NSMutableString	*currentString;
     BOOL				storingCharacters;

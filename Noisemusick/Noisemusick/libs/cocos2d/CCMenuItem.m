@@ -136,6 +136,20 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 					  contentSize_.width, contentSize_.height);
 }
 
+-(void) setBlock:(void(^)(id sender))block
+{
+    [block_ release];
+    block_ = [block copy];
+}
+
+-(void) setTarget:(id)target selector:(SEL)selector
+{
+    [self setBlock:^(id sender) {
+        
+		[target performSelector:selector withObject:sender];
+	}];
+}
+
 @end
 
 
@@ -410,8 +424,9 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 
 -(void) recreateLabel
 {
-	CCLabelTTF *label = [CCLabelTTF labelWithString:[label_ string] fontName:fontName_ fontSize:fontSize_];
+	CCLabelTTF *label = [[CCLabelTTF alloc] initWithString:[label_ string] fontName:fontName_ fontSize:fontSize_];
 	self.label = label;
+	[label release];
 }
 
 -(void) setFontSize: (NSUInteger) size
@@ -441,6 +456,10 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 @end
 
 #pragma mark - CCMenuItemSprite
+
+@interface CCMenuItemSprite()
+-(void) updateImagesVisibility;
+@end
 
 @implementation CCMenuItemSprite
 
@@ -501,12 +520,15 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 {
 	if( image != normalImage_ ) {
 		image.anchorPoint = ccp(0,0);
-		image.visible = YES;
 
 		[self removeChild:normalImage_ cleanup:YES];
 		[self addChild:image];
 
 		normalImage_ = image;
+        
+        [self setContentSize: [normalImage_ contentSize]];
+		
+		[self updateImagesVisibility];
 	}
 }
 
@@ -514,12 +536,13 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 {
 	if( image != selectedImage_ ) {
 		image.anchorPoint = ccp(0,0);
-		image.visible = NO;
 
 		[self removeChild:selectedImage_ cleanup:YES];
 		[self addChild:image];
 
 		selectedImage_ = image;
+		
+		[self updateImagesVisibility];
 	}
 }
 
@@ -527,12 +550,13 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 {
 	if( image != disabledImage_ ) {
 		image.anchorPoint = ccp(0,0);
-		image.visible = NO;
 
 		[self removeChild:disabledImage_ cleanup:YES];
 		[self addChild:image];
 
 		disabledImage_ = image;
+		
+		[self updateImagesVisibility];
 	}
 }
 
@@ -589,13 +613,22 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 
 -(void) setIsEnabled:(BOOL)enabled
 {
-	[super setIsEnabled:enabled];
+	if( isEnabled_ != enabled ) {
+		[super setIsEnabled:enabled];
 
-	if( enabled ) {
+		[self updateImagesVisibility];
+	}
+}
+
+
+// Helper 
+-(void) updateImagesVisibility
+{
+	if( isEnabled_ ) {
 		[normalImage_ setVisible:YES];
 		[selectedImage_ setVisible:NO];
 		[disabledImage_ setVisible:NO];
-
+		
 	} else {
 		if( disabledImage_ ) {
 			[normalImage_ setVisible:NO];
@@ -673,6 +706,24 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 	return [super initWithNormalSprite:normalImage selectedSprite:selectedImage disabledSprite:disabledImage block:block];
 }
 
+//
+// Setter of sprite frames
+//
+-(void) setNormalSpriteFrame:(CCSpriteFrame *)frame
+{
+    [self setNormalImage:[CCSprite spriteWithSpriteFrame:frame]];
+}
+
+-(void) setSelectedSpriteFrame:(CCSpriteFrame *)frame
+{
+    [self setSelectedImage:[CCSprite spriteWithSpriteFrame:frame]];
+}
+
+-(void) setDisabledSpriteFrame:(CCSpriteFrame *)frame
+{
+    [self setDisabledImage:[CCSprite spriteWithSpriteFrame:frame]];
+}
+
 @end
 
 #pragma mark - CCMenuItemToggle
@@ -745,8 +796,10 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 {
 	if( index != selectedIndex_ ) {
 		selectedIndex_=index;
-		[self removeChildByTag:kCCCurrentItemTag cleanup:NO];
-
+		CCMenuItem *currentItem = (CCMenuItem*)[self getChildByTag:kCCCurrentItemTag];
+		if( currentItem )
+			[currentItem removeFromParentAndCleanup:NO];
+		
 		CCMenuItem *item = [subItems_ objectAtIndex:selectedIndex_];
 		[self addChild:item z:0 tag:kCCCurrentItemTag];
 
@@ -788,9 +841,11 @@ const NSInteger	kCCZoomActionTag = 0xc0c05002;
 
 -(void) setIsEnabled: (BOOL)enabled
 {
-	[super setIsEnabled:enabled];
-	for(CCMenuItem* item in subItems_)
-		[item setIsEnabled:enabled];
+	if( isEnabled_ != enabled ) {
+		[super setIsEnabled:enabled];
+		for(CCMenuItem* item in subItems_)
+			[item setIsEnabled:enabled];
+	}
 }
 
 -(CCMenuItem*) selectedItem

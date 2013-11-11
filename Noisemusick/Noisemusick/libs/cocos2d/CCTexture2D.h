@@ -74,13 +74,12 @@ Copyright (C) 2008 Apple Inc. All Rights Reserved.
  Possible texture pixel formats
  */
 typedef enum {
-	kCCTexture2DPixelFormat_Automatic = 0,
 	//! 32-bit texture: RGBA8888
 	kCCTexture2DPixelFormat_RGBA8888,
+	//! 32-bit texture without Alpha channel. Don't use it.
+	kCCTexture2DPixelFormat_RGB888,
 	//! 16-bit texture without Alpha channel
 	kCCTexture2DPixelFormat_RGB565,
-	//! 24-bit texture without Alpha channel
-	kCCTexture2DPixelFormat_RGB888,
 	//! 8-bit textures used as masks
 	kCCTexture2DPixelFormat_A8,
 	//! 8-bit intensity texture
@@ -120,6 +119,7 @@ typedef enum {
 	GLfloat						maxS_,
 								maxT_;
 	BOOL						hasPremultipliedAlpha_;
+	BOOL						hasMipmaps_;
 
 #ifdef __CC_PLATFORM_IOS
 	ccResolutionType			resolutionType_;
@@ -195,9 +195,9 @@ Note that RGBA type textures will have their alpha premultiplied - use the blend
 @interface CCTexture2D (Image)
 /** Initializes a texture from a CGImage object */
 #ifdef __CC_PLATFORM_IOS
-- (id) initWithImage:(CGImageRef)cgImage resolutionType:(ccResolutionType)resolution;
+- (id) initWithCGImage:(CGImageRef)cgImage resolutionType:(ccResolutionType)resolution;
 #elif defined(__CC_PLATFORM_MAC)
-- (id) initWithImage:(CGImageRef)cgImage;
+- (id) initWithCGImage:(CGImageRef)cgImage;
 #endif
 @end
 
@@ -212,9 +212,9 @@ Note that the generated textures are of type A8 - use the blending mode (GL_SRC_
 	- Mac: Only NSLineBreakByWordWrapping is supported.
  @since v1.0
  */
-- (id) initWithString:(NSString*)string dimensions:(CGSize)dimensions alignment:(CCTextAlignment)alignment lineBreakMode:(CCLineBreakMode)lineBreakMode fontName:(NSString*)name fontSize:(CGFloat)size;
+- (id) initWithString:(NSString*)string dimensions:(CGSize)dimensions hAlignment:(CCTextAlignment)alignment vAlignment:(CCVerticalTextAlignment) vertAlignment lineBreakMode:(CCLineBreakMode)lineBreakMode fontName:(NSString*)name fontSize:(CGFloat)size;
 /** Initializes a texture from a string with dimensions, alignment, font name and font size */
-- (id) initWithString:(NSString*)string dimensions:(CGSize)dimensions alignment:(CCTextAlignment)alignment fontName:(NSString*)name fontSize:(CGFloat)size;
+- (id) initWithString:(NSString*)string dimensions:(CGSize)dimensions hAlignment:(CCTextAlignment)alignment vAlignment:(CCVerticalTextAlignment) vertAlignment fontName:(NSString*)name fontSize:(CGFloat)size;
 /** Initializes a texture from a string with font name and font size */
 - (id) initWithString:(NSString*)string fontName:(NSString*)name fontSize:(CGFloat)size;
 @end
@@ -271,6 +271,9 @@ typedef struct _ccTexParams {
 @interface CCTexture2D (GLFilter)
 /** sets the min filter, mag filter, wrap s and wrap t texture parameters.
  If the texture size is NPOT (non power of 2), then in can only use GL_CLAMP_TO_EDGE in GL_TEXTURE_WRAP_{S,T}.
+ 
+ @warning Calling this method could allocate additional texture memory.
+
  @since v0.8
  */
 -(void) setTexParameters: (ccTexParams*) texParams;
@@ -278,6 +281,8 @@ typedef struct _ccTexParams {
 /** sets antialias texture parameters:
   - GL_TEXTURE_MIN_FILTER = GL_LINEAR
   - GL_TEXTURE_MAG_FILTER = GL_LINEAR
+ 
+ @warning Calling this method could allocate additional texture memory.
 
  @since v0.8
  */
@@ -286,6 +291,8 @@ typedef struct _ccTexParams {
 /** sets alias texture parameters:
   - GL_TEXTURE_MIN_FILTER = GL_NEAREST
   - GL_TEXTURE_MAG_FILTER = GL_NEAREST
+
+ @warning Calling this method could allocate additional texture memory.
 
  @since v0.8
  */
@@ -307,14 +314,15 @@ typedef struct _ccTexParams {
 	- generate 32-bit textures: kCCTexture2DPixelFormat_RGBA8888 (default one)
 	- generate 16-bit textures: kCCTexture2DPixelFormat_RGBA4444
 	- generate 16-bit textures: kCCTexture2DPixelFormat_RGB5A1
-	- generate 16-bit textures: kCCTexture2DPixelFormat_RGB565
+	- generate 24-bit textures: kCCTexture2DPixelFormat_RGB888 (no alpha)
+	- generate 16-bit textures: kCCTexture2DPixelFormat_RGB565 (no alpha)
 	- generate 8-bit textures: kCCTexture2DPixelFormat_A8 (only use it if you use just 1 color)
 
  How does it work ?
    - If the image is an RGBA (with Alpha) then the default pixel format will be used (it can be a 8-bit, 16-bit or 32-bit texture)
-   - If the image is an RGB (without Alpha) then an RGB565 texture will be used (16-bit texture)
+   - If the image is an RGB (without Alpha) then: If the default pixel format is RGBA8888 then a RGBA8888 (32-bit) will be used. Otherwise a RGB565 (16-bit texture) will be used.
 
- This parameter is not valid for PVR images.
+ This parameter is not valid for PVR / PVR.CCZ images.
 
  @since v0.8
  */
@@ -329,6 +337,18 @@ typedef struct _ccTexParams {
  @since v1.0
  */
 -(NSUInteger) bitsPerPixelForFormat;
+
+/** returns the pixel format in a NSString.
+ @since v2.0
+ */
+-(NSString*) stringForFormat;
+
+
+/** Helper functions that returns bits per pixels for a given format.
+ @since v2.0
+ */
++(NSUInteger) bitsPerPixelForFormat:(CCTexture2DPixelFormat)format;
+
 @end
 
 

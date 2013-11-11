@@ -34,7 +34,7 @@
 #import "CCTextureCache.h"
 #import "CCDrawingPrimitives.h"
 #import "CCShaderCache.h"
-#import "ccGLState.h"
+#import "ccGLStateCache.h"
 #import "CCGLProgram.h"
 #import "CCDirector.h"
 #import "Support/CGPointExtension.h"
@@ -109,11 +109,6 @@
 +(id)spriteWithCGImage:(CGImageRef)image key:(NSString*)key
 {
 	return [[[self alloc] initWithCGImage:image key:key] autorelease];
-}
-
-+(id) spriteWithBatchNode:(CCSpriteBatchNode*)batchNode rect:(CGRect)rect
-{
-	return [[[self alloc] initWithBatchNode:batchNode rect:rect] autorelease];
 }
 
 -(id) init
@@ -242,25 +237,12 @@
 	return [self initWithTexture:texture rect:rect];
 }
 
--(id) initWithBatchNode:(CCSpriteBatchNode*)batchNode rect:(CGRect)rect
-{
-	return [self initWithBatchNode:batchNode rect:rect rotated:NO];
-}
-
--(id) initWithBatchNode:(CCSpriteBatchNode*)batchNode rect:(CGRect)rect rotated:(BOOL)rotated
-{
-	id ret = [self initWithTexture:batchNode.texture rect:rect rotated:rotated];
-	[self setBatchNode:batchNode];
-
-	return ret;
-}
-
 - (NSString*) description
 {
-	return [NSString stringWithFormat:@"<%@ = %08X | Rect = (%.2f,%.2f,%.2f,%.2f) | tag = %i | atlasIndex = %i>", [self class], self,
+	return [NSString stringWithFormat:@"<%@ = %p | Rect = (%.2f,%.2f,%.2f,%.2f) | tag = %ld | atlasIndex = %ld>", [self class], self,
 			rect_.origin.x, rect_.origin.y, rect_.size.width, rect_.size.height,
-			tag_,
-			atlasIndex_
+			(long)tag_,
+			(unsigned long)atlasIndex_
 	];
 }
 
@@ -379,9 +361,9 @@
 		bottom	= top+(rect.size.width*2-2)/(2*atlasHeight);
 #else
 		left	= rect.origin.x/atlasWidth;
-		right	= left+(rect.size.height/atlasWidth);
+		right	= (rect.origin.x+rect.size.height) / atlasWidth;
 		top		= rect.origin.y/atlasHeight;
-		bottom	= top+(rect.size.width/atlasHeight);
+		bottom	= (rect.origin.y+rect.size.width) / atlasHeight;
 #endif // ! CC_FIX_ARTIFACTS_BY_STRECHING_TEXEL
 
 		if( flipX_)
@@ -405,9 +387,9 @@
 		bottom	= top + (rect.size.height*2-2)/(2*atlasHeight);
 #else
 		left	= rect.origin.x/atlasWidth;
-		right	= left + rect.size.width/atlasWidth;
+		right	= (rect.origin.x + rect.size.width) / atlasWidth;
 		top		= rect.origin.y/atlasHeight;
-		bottom	= top + rect.size.height/atlasHeight;
+		bottom	= (rect.origin.y + rect.size.height) / atlasHeight;
 #endif // ! CC_FIX_ARTIFACTS_BY_STRECHING_TEXEL
 
 		if( flipX_)
@@ -428,7 +410,7 @@
 
 -(void)updateTransform
 {
-	NSAssert( batchNode_, @"updateTransform is only valid when CCSprite is being renderd using an CCSpriteBatchNode");
+	NSAssert( batchNode_, @"updateTransform is only valid when CCSprite is being rendered using an CCSpriteBatchNode");
 
 	// recaculate matrix only if it is dirty
 	if( self.dirty ) {
@@ -570,6 +552,7 @@
 	ccDrawPoly(vertices, 4, YES);
 #endif // CC_SPRITE_DEBUG_DRAW
 
+	CC_INCREMENT_GL_DRAWS(1);
 
 	CC_PROFILER_STOP_CATEGORY(kCCProfilerCategorySprite, @"CCSprite - draw");
 }
@@ -667,8 +650,6 @@
 	}
 }
 
-
-
 //
 // CCNode property overloads
 // used only when parent is CCSpriteBatchNode
@@ -678,11 +659,12 @@
 -(void) setReorderChildDirtyRecursively
 {
 	//only set parents flag the first time
+
 	if ( ! isReorderChildDirty_ )
 	{
 		isReorderChildDirty_ = YES;
 		CCNode* node = (CCNode*) parent_;
-		while (node != batchNode_)
+		while (node && node != batchNode_)
 		{
 			[(CCSprite*)node setReorderChildDirtyRecursively];
 			node=node.parent;
@@ -764,10 +746,10 @@
 	SET_DIRTY_RECURSIVELY();
 }
 
--(void)setIsRelativeAnchorPoint:(BOOL)relative
+-(void) setIgnoreAnchorPointForPosition:(BOOL)value
 {
-	NSAssert( ! batchNode_, @"relativeTransformAnchor is invalid in CCSprite");
-	[super setIsRelativeAnchorPoint:relative];
+	NSAssert( ! batchNode_, @"ignoreAnchorPointForPosition is invalid in CCSprite");
+	[super setIgnoreAnchorPointForPosition:value];
 }
 
 -(void)setVisible:(BOOL)v
@@ -855,9 +837,9 @@
 	color_ = colorUnmodified_ = color3;
 
 	if( opacityModifyRGB_ ){
-		color_.r = color3.r * opacity_/255;
-		color_.g = color3.g * opacity_/255;
-		color_.b = color3.b * opacity_/255;
+		color_.r = color3.r * opacity_/255.0f;
+		color_.g = color3.g * opacity_/255.0f;
+		color_.b = color3.b * opacity_/255.0f;
 	}
 
 	[self updateColor];
@@ -903,11 +885,11 @@
 
 	NSAssert( a, @"CCSprite#setDisplayFrameWithAnimationName: Frame not found");
 
-	CCSpriteFrame *frame = [[a frames] objectAtIndex:frameIndex];
+	CCAnimationFrame *frame = [[a frames] objectAtIndex:frameIndex];
 
 	NSAssert( frame, @"CCSprite#setDisplayFrame. Invalid frame");
 
-	[self setDisplayFrame:frame];
+	[self setDisplayFrame:frame.spriteFrame];
 }
 
 
@@ -919,7 +901,7 @@
 			CGPointEqualToPoint( frame.offset, unflippedOffsetPositionFromCenter_ ) );
 }
 
--(CCSpriteFrame*) displayedFrame
+-(CCSpriteFrame*) displayFrame
 {
 	return [CCSpriteFrame frameWithTexture:texture_
 							  rectInPixels:CC_RECT_POINTS_TO_PIXELS(rect_)
@@ -948,15 +930,18 @@
 
 -(void) setTexture:(CCTexture2D*)texture
 {
-	NSAssert( ! batchNode_, @"CCSprite: setTexture doesn't work when the sprite is rendered using a CCSpriteBatchNode");
+	// If batchnode, then texture id should be the same
+	NSAssert( !batchNode_ || texture.name == batchNode_.texture.name , @"CCSprite: Batched sprites should use the same texture as the batchnode");	
 
 	// accept texture==nil as argument
 	NSAssert( !texture || [texture isKindOfClass:[CCTexture2D class]], @"setTexture expects a CCTexture2D. Invalid argument");
 
-	[texture_ release];
-	texture_ = [texture retain];
+	if( ! batchNode_ && texture_ != texture ) {
+		[texture_ release];
+		texture_ = [texture retain];
 
-	[self updateBlendFunc];
+		[self updateBlendFunc];
+	}
 }
 
 -(CCTexture2D*) texture

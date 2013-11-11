@@ -32,10 +32,12 @@
 		control_state = 1;
 		control_value = 1;
         sprite.visible = NO;
+        holdOn = 1;
         sprite_highlight.visible = YES;
 	} else {
 		control_state = 0;
 		control_value = 0;
+        holdOn = 0;
         sprite.visible = YES;
         sprite_highlight.visible = NO;
 	}

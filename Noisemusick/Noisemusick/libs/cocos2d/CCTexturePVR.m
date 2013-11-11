@@ -49,6 +49,7 @@ Copyright (C) 2008 Apple Inc. All Rights Reserved.
  * Extended PVR formats for cocos2d project ( http://www.cocos2d-iphone.org )
  *	- RGBA8888
  *	- BGRA8888
+ *  - RGB888
  *  - RGBA4444
  *  - RGBA5551
  *  - RGB565
@@ -62,7 +63,7 @@ Copyright (C) 2008 Apple Inc. All Rights Reserved.
 #import "CCTexturePVR.h"
 #import "ccMacros.h"
 #import "CCConfiguration.h"
-#import "ccGLState.h"
+#import "ccGLStateCache.h"
 #import "Support/ccUtils.h"
 #import "Support/CCFileUtils.h"
 #import "Support/ZipUtils.h"
@@ -164,6 +165,7 @@ typedef struct _PVRTexHeader
 @synthesize width = width_;
 @synthesize height = height_;
 @synthesize hasAlpha = hasAlpha_;
+@synthesize numberOfMipmaps = numberOfMipmaps_;
 
 // cocos2d integration
 @synthesize retainName = retainName_;
@@ -190,6 +192,7 @@ typedef struct _PVRTexHeader
 		(uint32_t)gPVRTexIdentifier[2] != ((pvrTag >> 16) & 0xff) ||
 		(uint32_t)gPVRTexIdentifier[3] != ((pvrTag >> 24) & 0xff))
 	{
+		CCLOG(@"Unsupported PVR format. Use the Legacy format until the new format is supported");
 		return FALSE;
 	}
 
@@ -199,11 +202,11 @@ typedef struct _PVRTexHeader
 	formatFlags = flags & PVR_TEXTURE_FLAG_TYPE_MASK;
 	BOOL flipped = flags & kPVRTextureFlagVerticalFlip;
 	if( flipped )
-		CCLOG(@"cocos2d: WARNING: Image is flipped. Regenerate it using PVRTexTool");
+		CCLOGWARN(@"cocos2d: WARNING: Image is flipped. Regenerate it using PVRTexTool");
 
 	if( ! [configuration supportsNPOT] &&
 	   ( header->width != ccNextPOT(header->width) || header->height != ccNextPOT(header->height ) ) ) {
-		CCLOG(@"cocos2d: ERROR: Loding an NPOT texture (%dx%d) but is not supported on this device", header->width, header->height);
+		CCLOGWARN(@"cocos2d: ERROR: Loding an NPOT texture (%dx%d) but is not supported on this device", header->width, header->height);
 		return FALSE;
 	}
 
@@ -258,7 +261,7 @@ typedef struct _PVRTexHeader
 					heightBlocks = 2;
 
 				dataSize = widthBlocks * heightBlocks * ((blockSize  * bpp) / 8);
-				float packetLength = (dataLength-dataOffset);
+				unsigned int packetLength = (dataLength-dataOffset);
 				packetLength = packetLength > dataSize ? dataSize : packetLength;
 
 				mipmaps_[numberOfMipmaps_].address = bytes+dataOffset;
@@ -279,7 +282,7 @@ typedef struct _PVRTexHeader
 	}
 
 	if( ! success )
-		CCLOG(@"cocos2d: WARNING: Unsupported PVR Pixel Format: 0x%2x. Re-encode it with a OpenGL pixel format variant", formatFlags);
+		CCLOGWARN(@"cocos2d: WARNING: Unsupported PVR Pixel Format: 0x%2x. Re-encode it with a OpenGL pixel format variant", formatFlags);
 
 	return success;
 }
@@ -296,24 +299,35 @@ typedef struct _PVRTexHeader
 		if (name_ != 0)
 			ccGLDeleteTexture( name_ );
 
+		// From PVR sources: "PVR files are never row aligned."
 		glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+
 		glGenTextures(1, &name_);
 		ccGLBindTexture2D( name_ );
 
+		// Default: Anti alias.
+		if( numberOfMipmaps_ == 1 )
+			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+		else
+			glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+		
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
 	}
-
+	
 	CHECK_GL_ERROR(); // clean possible GL error
+
+	GLenum internalFormat = tableFormats[tableFormatIndex_][kCCInternalOpenGLInternalFormat];
+	GLenum format = tableFormats[tableFormatIndex_][kCCInternalOpenGLFormat];
+	GLenum type = tableFormats[tableFormatIndex_][kCCInternalOpenGLType];
+	BOOL compressed = tableFormats[tableFormatIndex_][kCCInternalCompressedImage];
 
 	// Generate textures with mipmaps
 	for (GLint i=0; i < numberOfMipmaps_; i++)
 	{
-		GLenum internalFormat = tableFormats[tableFormatIndex_][kCCInternalOpenGLInternalFormat];
-		GLenum format = tableFormats[tableFormatIndex_][kCCInternalOpenGLFormat];
-		GLenum type = tableFormats[tableFormatIndex_][kCCInternalOpenGLType];
-		BOOL compressed = tableFormats[tableFormatIndex_][kCCInternalCompressedImage];
-
 		if( compressed && ! [[CCConfiguration sharedConfiguration] supportsPVRTC] ) {
-			CCLOG(@"cocos2d: WARNING: PVRTC images are not supported");
+			CCLOGWARN(@"cocos2d: WARNING: PVRTC images are not supported");
 			return FALSE;
 		}
 
@@ -326,19 +340,19 @@ typedef struct _PVRTexHeader
 			glTexImage2D(GL_TEXTURE_2D, i, internalFormat, width, height, 0, format, type, data);
 
 		if( i > 0 && (width != height || ccNextPOT(width) != width ) )
-			CCLOG(@"cocos2d: TexturePVR. WARNING. Mipmap level %u is not squared. Texture won't render correctly. width=%u != height=%u", i, width, height);
+			CCLOGWARN(@"cocos2d: TexturePVR. WARNING. Mipmap level %u is not squared. Texture won't render correctly. width=%u != height=%u", i, width, height);
 
 		err = glGetError();
 		if (err != GL_NO_ERROR)
 		{
-			CCLOG(@"cocos2d: TexturePVR: Error uploading compressed texture level: %u . glError: 0x%04X", i, err);
+			CCLOGWARN(@"cocos2d: TexturePVR: Error uploading compressed texture level: %u . glError: 0x%04X", i, err);
 			return FALSE;
 		}
 
 		width = MAX(width >> 1, 1);
 		height = MAX(height >> 1, 1);
 	}
-
+	
 	return TRUE;
 }
 
@@ -380,6 +394,59 @@ typedef struct _PVRTexHeader
 			[self release];
 			return nil;
 		}
+		
+#if defined(__CC_PLATFORM_IOS) && defined(DEBUG)
+
+		GLenum pixelFormat = tableFormats[tableFormatIndex_][kCCInternalCCTexture2DPixelFormat];
+		CCConfiguration *conf = [CCConfiguration sharedConfiguration];
+		
+		if( [conf OSVersion] >= kCCiOSVersion_5_0 )
+		{
+			
+			// iOS 5 BUG:
+			// RGB888 textures allocate much more memory than needed on iOS 5
+			// http://www.cocos2d-iphone.org/forum/topic/31092
+			
+			if( pixelFormat == kCCTexture2DPixelFormat_RGB888 ) {
+				printf("\n");
+				NSLog(@"cocos2d: WARNING. Using RGB888 texture. Convert it to RGB565 or RGBA8888 in order to reduce memory");
+				NSLog(@"cocos2d: WARNING: File: %@", [path lastPathComponent] );
+				NSLog(@"cocos2d: WARNING: For furhter info visit: http://www.cocos2d-iphone.org/forum/topic/31092");
+				printf("\n");
+			}
+
+			
+			else if( width_ != ccNextPOT(width_) ) {
+				
+				// XXX: Is this applicable for compressed textures ?
+				// Since they are squared and POT (PVRv2) it is not an issue now. Not sure in the future.
+				
+				// iOS 5 BUG:
+				// If width is not word aligned, then log warning.
+				// http://www.cocos2d-iphone.org/forum/topic/31092
+				
+
+				NSUInteger bpp = [CCTexture2D bitsPerPixelForFormat:pixelFormat];
+				NSUInteger bytes = width_ * bpp / 8;
+
+				// XXX: Should it be 4 or sizeof(int) ??
+				NSUInteger mod = bytes % 4;
+				
+				// Not word aligned ?
+				if( mod != 0 ) {
+
+					NSUInteger neededBytes = (4 - mod ) / (bpp/8);
+					printf("\n");
+					NSLog(@"cocos2d: WARNING. Current texture size=(%d,%d). Convert it to size=(%d,%d) in order to save memory", width_, height_, width_ + neededBytes, height_ );
+					NSLog(@"cocos2d: WARNING: File: %@", [path lastPathComponent] );
+					NSLog(@"cocos2d: WARNING: For furhter info visit: http://www.cocos2d-iphone.org/forum/topic/31092");
+					printf("\n");
+				}
+			}
+		}
+#endif // iOS
+		
+
 
 		free(pvrdata);
 	}

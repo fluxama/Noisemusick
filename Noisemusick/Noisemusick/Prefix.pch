@@ -26,13 +26,10 @@
 #define TOGGLE_TOUCH (14)
 #define PLASMA_MULTI_TOUCH (15)
 
-
 //  Determine device
-#ifdef UI_USER_INTERFACE_IDIOM
-#define IS_IPAD() (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
-#else
-#define IS_IPAD() (NO)
-#endif
+#define IS_IPAD (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
+#define IS_IPHONE (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone)
+#define IS_IPHONE_5 (IS_IPHONE && [[UIScreen mainScreen] bounds].size.height == 568.0f)
 
 // Defines for translating iPhone positioning to iPad
 // 480 point wide -> 1024 points wide
@@ -40,7 +37,7 @@
 #define IPAD_MULT (2.13f)
 #define IPAD_BOT_TRIM (45)
 
-int HALF_DROP_SHADOW_W;
+#define IPHONE_5_MARGIN (44)
 
 int THUMBW;
 int THUMBH;
@@ -49,5 +46,10 @@ int SCREEN_CENTER_X;
 int SCREEN_CENTER_Y;
 int BUTTON_Y;
 int ABOUT_IMAGE_WIDTH;
+int HALF_DROP_SHADOW_W;
+int HELP_SCREEN_H;
+int INFO_ICON_H;
+
 
 int current_item;
+int holdOn;

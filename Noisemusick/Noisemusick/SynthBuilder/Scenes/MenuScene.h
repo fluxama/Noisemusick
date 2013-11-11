@@ -12,7 +12,6 @@
 
 #import <UIKit/UIKit.h>
 #import "cocos2d.h"
-#import "AboutScene.h"
 
 @class MenuLayer;
 
@@ -21,8 +20,6 @@
     CCMenu *menu;
     MenuLayer *ml;
 }
-
--(void)toggleAbout: (id) sender;
 
 @end
 

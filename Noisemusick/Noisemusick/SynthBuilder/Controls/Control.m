@@ -35,12 +35,17 @@
 	if( (self=[super init] )) {
 		self.control_id = [params objectForKey:@"input_id"];
 		self.control_type = [[params objectForKey:@"input_type"] intValue];
-        if (IS_IPAD()) {
+        if (IS_IPAD) {
             // Scale and offset position
             self.control_x = [[params objectForKey:@"x"] intValue]*IPAD_MULT;
             self.control_y = [[params objectForKey:@"y"] intValue]*IPAD_MULT + IPAD_BOT_TRIM;
             self.control_width = [[params objectForKey:@"width"] intValue]*IPAD_MULT;
             self.control_height = [[params objectForKey:@"height"] intValue]*IPAD_MULT;
+        } else if (IS_IPHONE_5) {
+            self.control_x = [[params objectForKey:@"x"] intValue]+IPHONE_5_MARGIN;
+            self.control_y = [[params objectForKey:@"y"] intValue];
+            self.control_width = [[params objectForKey:@"width"] intValue];
+            self.control_height = [[params objectForKey:@"height"] intValue];
         } else {
             self.control_x = [[params objectForKey:@"x"] intValue];
             self.control_y = [[params objectForKey:@"y"] intValue];

@@ -39,7 +39,7 @@
 #import "../../CCScheduler.h"
 #import "../../ccMacros.h"
 #import "../../CCGLProgram.h"
-#import "../../ccGLState.h"
+#import "../../ccGLStateCache.h"
 
 // external
 #import "kazmath/kazmath.h"
@@ -118,6 +118,20 @@
 //
 - (void) setFullScreen:(BOOL)fullscreen
 {
+//	isFullScreen_ = !isFullScreen_;
+//		
+//	if (isFullScreen_)
+//	{
+//		[self.view enterFullScreenMode:[[self.view window] screen] withOptions:nil];
+//	}
+//	else
+//	{
+//		[self.view exitFullScreenModeWithOptions:nil];
+//		[[self.view window] makeFirstResponder: self.view];
+//	}
+//	
+//	return;
+
 	// Mac OS X 10.6 and later offer a simplified mechanism to create full-screen contexts
 #if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_5
 
@@ -175,6 +189,10 @@
         [windowGLView_ makeKeyAndOrderFront:self];
 		[windowGLView_ makeMainWindow];
     }
+	
+	// issue #1189
+	[windowGLView_ makeFirstResponder:openGLview];
+
     isFullScreen_ = fullscreen;
 
     [openGLview retain]; // Retain +1
@@ -195,9 +213,6 @@
 {
 	if( view != view_) {
 
-		[view_ release];
-		view_ = [view retain];
-
 		[super setView:view];
 
 		// cache the NSWindow and NSOpenGLView created from the NIB
@@ -206,11 +221,6 @@
 			originalWinSize_ = winSizeInPixels_;
 		}
 	}
-}
-
--(CCGLView*) view
-{
-	return view_;
 }
 
 -(int) resizeMode
@@ -277,12 +287,19 @@
 		case kCCDirectorProjection3D:
 		{
 
+			float zeye = [self getZEye];
+
 			glViewport(offset.x, offset.y, widthAspect, heightAspect);
 			kmGLMatrixMode(KM_GL_PROJECTION);
 			kmGLLoadIdentity();
 
 			kmMat4 matrixPerspective, matrixLookup;
-			kmMat4PerspectiveProjection( &matrixPerspective, 60, (GLfloat)widthAspect/heightAspect, 0.1f, 1500.0f);
+
+			// issue #1334
+			kmMat4PerspectiveProjection( &matrixPerspective, 60, (GLfloat)size.width/size.height, 0.1f, MAX(zeye*2,1500) );
+//			kmMat4PerspectiveProjection( &matrixPerspective, 60, (GLfloat)size.width/size.height, 0.1f, 1500);
+
+
 			kmGLMultMatrix(&matrixPerspective);
 
 
@@ -290,7 +307,7 @@
 			kmGLLoadIdentity();
 			kmVec3 eye, center, up;
 
-			float eyeZ = size.height * [self getZEye] / winSizeInPixels_.height;
+			float eyeZ = size.height * zeye / winSizeInPixels_.height;
 
 			kmVec3Fill( &eye, size.width/2, size.height/2, eyeZ );
 			kmVec3Fill( &center, size.width/2, size.height/2, 0 );
@@ -306,7 +323,7 @@
 			break;
 
 		default:
-			CCLOG(@"cocos2d: Director: unrecognized projecgtion");
+			CCLOG(@"cocos2d: Director: unrecognized projection");
 			break;
 	}
 
@@ -375,7 +392,7 @@
 
 - (CVReturn) getFrameForTime:(const CVTimeStamp*)outputTime
 {
-#if CC_DIRECTOR_MAC_USE_DISPLAY_LINK_THREAD
+#if (CC_DIRECTOR_MAC_THREAD == CC_MAC_USE_DISPLAY_LINK_THREAD)
 	if( ! runningThread_ )
 		runningThread_ = [NSThread currentThread];
 
@@ -404,10 +421,15 @@ static CVReturn MyDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTime
 
 - (void) startAnimation
 {
+    if(isAnimating_)
+        return;
+
 	CCLOG(@"cocos2d: startAnimation");
-#if ! CC_DIRECTOR_MAC_USE_DISPLAY_LINK_THREAD
+#if (CC_DIRECTOR_MAC_THREAD == CC_MAC_USE_OWN_THREAD)
 	runningThread_ = [[NSThread alloc] initWithTarget:self selector:@selector(mainLoop) object:nil];
 	[runningThread_ start];
+#elif (CC_DIRECTOR_MAC_THREAD == CC_MAC_USE_MAIN_THREAD)
+    runningThread_ = [NSThread mainThread];
 #endif
 
 	gettimeofday( &lastUpdate_, NULL);
@@ -426,10 +448,15 @@ static CVReturn MyDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTime
 
 	// Activate the display link
 	CVDisplayLinkStart(displayLink);
+    
+    isAnimating_ = YES;
 }
 
 - (void) stopAnimation
 {
+    if(!isAnimating_)
+        return;
+
 	CCLOG(@"cocos2d: stopAnimation");
 
 	if( displayLink ) {
@@ -437,12 +464,16 @@ static CVReturn MyDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTime
 		CVDisplayLinkRelease(displayLink);
 		displayLink = NULL;
 
-#if ! CC_DIRECTOR_MAC_USE_DISPLAY_LINK_THREAD
+#if CC_DIRECTOR_MAC_THREAD == CC_MAC_USE_OWN_THREAD
 		[runningThread_ cancel];
 		[runningThread_ release];
 		runningThread_ = nil;
+#elif (CC_DIRECTOR_MAC_THREAD == CC_MAC_USE_MAIN_THREAD)
+        runningThread_ = nil;
 #endif
 	}
+    
+    isAnimating_ = NO;
 }
 
 -(void) dealloc
@@ -482,9 +513,7 @@ static CVReturn MyDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTime
 	// When resizing the view, -reshape is called automatically on the main thread
 	// Add a mutex around to avoid the threads accessing the context simultaneously	when resizing
 
-	CCGLView *openGLview = (CCGLView*) self.view;
-	CGLLockContext([[openGLview openGLContext] CGLContextObj]);
-	[[openGLview openGLContext] makeCurrentContext];
+	[self.view lockOpenGLContext];
 
 	/* tick before glClear: issue #533 */
 	if( ! isPaused_ )
@@ -513,8 +542,11 @@ static CVReturn MyDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTime
 
 	totalFrames_++;
 	
-	[[openGLview openGLContext] flushBuffer];
-	CGLUnlockContext([[openGLview openGLContext] CGLContextObj]);
+
+	// flush buffer
+	[self.view.openGLContext flushBuffer];	
+
+	[self.view unlockOpenGLContext];
 
 	if( displayStats_ )
 		[self calculateMPF];

@@ -41,7 +41,7 @@
 #import "../../ccMacros.h"
 #import "../../CCScene.h"
 #import "../../CCGLProgram.h"
-#import "../../ccGLState.h"
+#import "../../ccGLStateCache.h"
 #import "../../CCLayer.h"
 
 // support imports
@@ -117,6 +117,9 @@ CGFloat	__ccContentScaleFactor = 1;
 
 		// running thread is main thread on iOS
 		runningThread_ = [NSThread currentThread];
+		
+		// Apparently it comes with a default view, and we don't want it
+//		[self setView:nil];
 	}
 
 	return self;
@@ -176,7 +179,7 @@ CGFloat	__ccContentScaleFactor = 1;
 	CGSize size = winSizeInPixels_;
 	CGSize sizePoint = winSizeInPoints_;
 
-	glViewport(0, 0, size.width * CC_CONTENT_SCALE_FACTOR(), size.height * CC_CONTENT_SCALE_FACTOR() );
+	glViewport(0, 0, size.width, size.height );
 
 	switch (projection) {
 		case kCCDirectorProjection2D:
@@ -185,7 +188,7 @@ CGFloat	__ccContentScaleFactor = 1;
 			kmGLLoadIdentity();
 
 			kmMat4 orthoMatrix;
-			kmMat4OrthographicProjection(&orthoMatrix, 0, size.width, 0, size.height, -1024, 1024 );
+			kmMat4OrthographicProjection(&orthoMatrix, 0, size.width / CC_CONTENT_SCALE_FACTOR(), 0, size.height / CC_CONTENT_SCALE_FACTOR(), -1024, 1024 );
 			kmGLMultMatrix( &orthoMatrix );
 
 			kmGLMatrixMode(KM_GL_MODELVIEW);
@@ -194,10 +197,6 @@ CGFloat	__ccContentScaleFactor = 1;
 
 		case kCCDirectorProjection3D:
 		{
-			// reset the viewport if 3d proj & retina display
-			if( CC_CONTENT_SCALE_FACTOR() != 1 )
-				glViewport(-size.width/2, -size.height/2, size.width * CC_CONTENT_SCALE_FACTOR(), size.height * CC_CONTENT_SCALE_FACTOR() );
-
 			float zeye = [self getZEye];
 
 			kmMat4 matrixPerspective, matrixLookup;
@@ -205,7 +204,10 @@ CGFloat	__ccContentScaleFactor = 1;
 			kmGLMatrixMode(KM_GL_PROJECTION);
 			kmGLLoadIdentity();
 
-			kmMat4PerspectiveProjection( &matrixPerspective, 60, (GLfloat)sizePoint.width/sizePoint.height, 0.5f, 1500.0f );
+			// issue #1334
+			kmMat4PerspectiveProjection( &matrixPerspective, 60, (GLfloat)size.width/size.height, 0.1f, zeye*2);
+//			kmMat4PerspectiveProjection( &matrixPerspective, 60, (GLfloat)size.width/size.height, 0.1f, 1500);
+
 			kmGLMultMatrix(&matrixPerspective);
 
 			kmGLMatrixMode(KM_GL_MODELVIEW);
@@ -225,7 +227,7 @@ CGFloat	__ccContentScaleFactor = 1;
 			break;
 
 		default:
-			CCLOG(@"cocos2d: Director: unrecognized projecgtion");
+			CCLOG(@"cocos2d: Director: unrecognized projection");
 			break;
 	}
 
@@ -263,7 +265,7 @@ CGFloat	__ccContentScaleFactor = 1;
 		__ccContentScaleFactor = scaleFactor;
 		winSizeInPixels_ = CGSizeMake( winSizeInPoints_.width * scaleFactor, winSizeInPoints_.height * scaleFactor );
 
-		if( self.view )
+		if( view_ )
 			[self updateContentScaleFactor];
 
 		// update projection
@@ -273,9 +275,9 @@ CGFloat	__ccContentScaleFactor = 1;
 
 -(void) updateContentScaleFactor
 {
-	NSAssert( [self.view respondsToSelector:@selector(setContentScaleFactor:)], @"cocos2d v2.0+ runs on iOS 4 or later");
+	NSAssert( [view_ respondsToSelector:@selector(setContentScaleFactor:)], @"cocos2d v2.0+ runs on iOS 4 or later");
 
-	[self.view setContentScaleFactor: __ccContentScaleFactor];
+	[view_ setContentScaleFactor: __ccContentScaleFactor];
 	isContentScaleSupported_ = YES;
 }
 
@@ -290,7 +292,7 @@ CGFloat	__ccContentScaleFactor = 1;
 		return YES;
 
 	// setContentScaleFactor is not supported
-	if (! [self.view respondsToSelector:@selector(setContentScaleFactor:)])
+	if (! [view_ respondsToSelector:@selector(setContentScaleFactor:)])
 		return NO;
 
 	// SD device
@@ -309,7 +311,7 @@ CGFloat	__ccContentScaleFactor = 1;
 // overriden, don't call super
 -(void) reshapeProjection:(CGSize)size
 {
-	winSizeInPoints_ = [self.view bounds].size;
+	winSizeInPoints_ = [view_ bounds].size;
 	winSizeInPixels_ = CGSizeMake(winSizeInPoints_.width * __ccContentScaleFactor, winSizeInPoints_.height *__ccContentScaleFactor);
 
 	[self setProjection:projection_];
@@ -347,16 +349,20 @@ CGFloat	__ccContentScaleFactor = 1;
 
 -(void) setView:(CCGLView *)view
 {
-	[super setView:view];
+	if( view != view_) {
+		[super setView:view];
 
-	// set size
-	winSizeInPixels_ = CGSizeMake(winSizeInPoints_.width * __ccContentScaleFactor, winSizeInPoints_.height *__ccContentScaleFactor);
+		if( view ) {
+			// set size
+			winSizeInPixels_ = CGSizeMake(winSizeInPoints_.width * __ccContentScaleFactor, winSizeInPoints_.height *__ccContentScaleFactor);
 
-	if( __ccContentScaleFactor != 1 )
-		[self updateContentScaleFactor];
+			if( __ccContentScaleFactor != 1 )
+				[self updateContentScaleFactor];
 
-	[view setTouchDelegate: touchDispatcher_];
-	[touchDispatcher_ setDispatchEvents: YES];
+			[view setTouchDelegate: touchDispatcher_];
+			[touchDispatcher_ setDispatchEvents: YES];
+		}
+	}
 }
 
 // Override to allow orientations other than the default portrait orientation.
@@ -451,7 +457,8 @@ CGFloat	__ccContentScaleFactor = 1;
 
 - (void) startAnimation
 {
-	NSAssert( displayLink_ == nil, @"displayLink must be nil. Calling startAnimation twice?");
+    if(isAnimating_)
+        return;
 
 	gettimeofday( &lastUpdate_, NULL);
 
@@ -474,11 +481,14 @@ CGFloat	__ccContentScaleFactor = 1;
 	[displayLink_ addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 #endif
 
-
+    isAnimating_ = YES;
 }
 
 - (void) stopAnimation
 {
+    if(!isAnimating_)
+        return;
+
 	CCLOG(@"cocos2d: animation stopped");
 
 #if CC_DIRECTOR_IOS_USE_BACKGROUND_THREAD
@@ -489,13 +499,14 @@ CGFloat	__ccContentScaleFactor = 1;
 
 	[displayLink_ invalidate];
 	displayLink_ = nil;
+    isAnimating_ = NO;
 }
 
 // Overriden in order to use a more stable delta time
 -(void) calculateDeltaTime
 {
-    // New delta time
-    if( nextDeltaTimeZero_ ) {
+    // New delta time. Re-fixed issue #1277
+    if( nextDeltaTimeZero_ || lastDisplayTime_==0 ) {
         dt = 0;
         nextDeltaTimeZero_ = NO;
     } else {

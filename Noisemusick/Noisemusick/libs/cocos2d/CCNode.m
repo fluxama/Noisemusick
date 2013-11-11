@@ -77,7 +77,7 @@ static NSUInteger globalOrderOfArrival = 1;
 @synthesize tag = tag_;
 @synthesize vertexZ = vertexZ_;
 @synthesize isRunning = isRunning_;
-@synthesize userData = userData_;
+@synthesize userData = userData_, userObject = userObject_;
 @synthesize	shaderProgram = shaderProgram_;
 @synthesize orderOfArrival = orderOfArrival_;
 @synthesize glServerState = glServerState_;
@@ -88,7 +88,7 @@ static NSUInteger globalOrderOfArrival = 1;
 @synthesize position = position_;
 @synthesize anchorPoint = anchorPoint_, anchorPointInPoints = anchorPointInPoints_;
 @synthesize contentSize = contentSize_;
-@synthesize isRelativeAnchorPoint = isRelativeAnchorPoint_;
+@synthesize ignoreAnchorPointForPosition = ignoreAnchorPointForPosition_;
 @synthesize skewX = skewX_, skewY = skewY_;
 
 #pragma mark CCNode - Init & cleanup
@@ -112,8 +112,8 @@ static NSUInteger globalOrderOfArrival = 1;
 		anchorPointInPoints_ = anchorPoint_ = CGPointZero;
 
 
-		// "whole screen" objects. like Scenes and Layers, should set isRelativeAnchorPoint to NO
-		isRelativeAnchorPoint_ = YES;
+		// "whole screen" objects. like Scenes and Layers, should set ignoreAnchorPointForPosition to YES
+		ignoreAnchorPointForPosition_ = NO;
 
 		isTransformDirty_ = isInverseDirty_ = YES;
 
@@ -134,7 +134,8 @@ static NSUInteger globalOrderOfArrival = 1;
 		children_ = nil;
 
 		// userData is always inited as nil
-		userData_ = nil;
+		userData_ = NULL;
+		userObject_ = nil;
 
 		//initialize parent to nil
 		parent_ = nil;
@@ -144,7 +145,7 @@ static NSUInteger globalOrderOfArrival = 1;
 		orderOfArrival_ = 0;
 
 		glServerState_ = CC_GL_BLEND;
-
+		
 		// set default scheduler and actionManager
 		CCDirector *director = [CCDirector sharedDirector];
 		self.actionManager = [director actionManager];
@@ -166,7 +167,7 @@ static NSUInteger globalOrderOfArrival = 1;
 
 - (NSString*) description
 {
-	return [NSString stringWithFormat:@"<%@ = %08X | Tag = %i>", [self class], self, tag_];
+	return [NSString stringWithFormat:@"<%@ = %p | Tag = %ld>", [self class], self, (long)tag_];
 }
 
 - (void) dealloc
@@ -178,6 +179,7 @@ static NSUInteger globalOrderOfArrival = 1;
 	[camera_ release];
 	[grid_ release];
 	[shaderProgram_ release];
+	[userObject_ release];
 
 	// children
 	CCNode *child;
@@ -185,6 +187,7 @@ static NSUInteger globalOrderOfArrival = 1;
 		child.parent = nil;
 
 	[children_ release];
+
 	[super dealloc];
 }
 
@@ -227,10 +230,12 @@ static NSUInteger globalOrderOfArrival = 1;
 	isTransformDirty_ = isInverseDirty_ = YES;
 }
 
--(void) setIsRelativeAnchorPoint: (BOOL)newValue
+-(void) setIgnoreAnchorPointForPosition: (BOOL)newValue
 {
-	isRelativeAnchorPoint_ = newValue;
-	isTransformDirty_ = isInverseDirty_ = YES;
+	if( newValue != ignoreAnchorPointForPosition_ ) {
+		ignoreAnchorPointForPosition_ = newValue;
+		isTransformDirty_ = isInverseDirty_ = YES;
+	}
 }
 
 -(void) setAnchorPoint:(CGPoint)point
@@ -273,6 +278,14 @@ static NSUInteger globalOrderOfArrival = 1;
 {
 	scaleX_ = scaleY_ = s;
 	isTransformDirty_ = isInverseDirty_ = YES;
+}
+
+- (void) setZOrder:(NSInteger)zOrder
+{
+	[self _setZOrder:zOrder];
+
+    if (parent_)
+        [parent_ reorderChild:self z:zOrder];
 }
 
 #pragma mark CCNode Composition
@@ -747,7 +760,7 @@ static NSUInteger globalOrderOfArrival = 1;
 		float x = position_.x;
 		float y = position_.y;
 
-		if ( !isRelativeAnchorPoint_ ) {
+		if ( ignoreAnchorPointForPosition_ ) {
 			x += anchorPointInPoints_.x;
 			y += anchorPointInPoints_.y;
 		}

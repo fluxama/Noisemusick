@@ -12,7 +12,6 @@
 
 #import "MenuScene.h"
 #import "InstrumentScene.h"
-#import "AboutScene.h"
 
 @implementation MenuScene
 
@@ -21,7 +20,7 @@
     if (self != nil) {
         CCSprite * bg = [CCSprite spriteWithFile:@"menuBackground.png"];
         [bg setPosition:ccp(SCREEN_CENTER_X, SCREEN_CENTER_Y)];
-        if (IS_IPAD()) {
+        if (IS_IPAD) {
             bg.scale = 2.5; 
         }
         [self addChild:bg z:0];
@@ -50,11 +49,6 @@
     return self;
 }
 
--(void) toggleAbout: (id) sender {
-    //CCLOG(@"about pressed");
-    AboutScene *as = [AboutScene node];
-	[[CCDirector sharedDirector] replaceScene:[CCTransitionFlipY transitionWithDuration:0.5f scene:as]];
-}
 
 -(void) dealloc
 {
@@ -81,6 +75,8 @@ bool waitForMoveTo;
 - (id) init {
     self = [super init];
     if (self != nil) {
+        
+        holdOn = 0;
         
 		NSString *errorDesc = nil;
         NSPropertyListFormat format;
@@ -121,7 +117,7 @@ bool waitForMoveTo;
             [selectedItem setVisible:NO];
             [selectedMenuItems insertObject:selectedItem atIndex:i];
             
-            if (IS_IPAD()) {
+            if (IS_IPAD) {
                 HALF_DROP_SHADOW_W = 7*IPAD_MULT;
             } else {
                 HALF_DROP_SHADOW_W = 7;

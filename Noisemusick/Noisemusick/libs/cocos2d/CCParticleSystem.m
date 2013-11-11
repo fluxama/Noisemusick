@@ -61,6 +61,10 @@
 #import "Support/ZipUtils.h"
 #import "Support/CCFileUtils.h"
 
+@interface CCParticleSystem ()
+-(void) updateBlendFunc;
+@end
+
 @implementation CCParticleSystem
 @synthesize active, duration;
 @synthesize sourcePosition, posVar;
@@ -70,9 +74,9 @@
 @synthesize startColor, startColorVar, endColor, endColorVar;
 @synthesize startSpin, startSpinVar, endSpin, endSpinVar;
 @synthesize emissionRate;
-@synthesize totalParticles;
 @synthesize startSize, startSizeVar;
 @synthesize endSize, endSizeVar;
+@synthesize opacityModifyRGB = opacityModifyRGB_;
 @synthesize blendFunc = blendFunc_;
 @synthesize positionType = positionType_;
 @synthesize autoRemoveOnFinish = autoRemoveOnFinish_;
@@ -85,14 +89,12 @@
 }
 
 -(id) init {
-	NSAssert(NO, @"CCParticleSystem: Init not supported.");
-	[self release];
-	return nil;
+	return [self initWithTotalParticles:150];
 }
 
 -(id) initWithFile:(NSString *)plistFile
 {
-	NSString *path = [CCFileUtils fullPathFromRelativePath:plistFile];
+	NSString *path = [[CCFileUtils sharedFileUtils] fullPathFromRelativePath:plistFile];
 	NSDictionary *dict = [NSDictionary dictionaryWithContentsOfFile:path];
 
 	NSAssert( dict != nil, @"Particles: file not found");
@@ -218,8 +220,12 @@
 		//don't get the internal texture if a batchNode is used
 		if (!batchNode_)
 		{
-		// texture
-		// Try to get the texture from the cache
+			// Set a compatible default for the alpha transfer
+			opacityModifyRGB_ = NO;
+
+			// texture
+			// Try to get the texture from the cache
+
 			NSString *textureName = [dictionary valueForKey:@"textureFileName"];
 
 			CCTexture2D *tex = [[CCTextureCache sharedTextureCache] addImage:textureName];
@@ -272,10 +278,11 @@
 		particles = calloc( totalParticles, sizeof(tCCParticle) );
 
 		if( ! particles ) {
-			NSLog(@"Particle system: not enough memory");
+			CCLOG(@"Particle system: not enough memory");
 			[self release];
 			return nil;
 		}
+        allocatedParticles = numberOfParticles;
 
 		if (batchNode_)
 		{
@@ -314,6 +321,8 @@
 
 -(void) dealloc
 {
+	[self unscheduleUpdate];
+
 	free( particles );
 
 	[texture_ release];
@@ -459,13 +468,18 @@
 
 	if( active && emissionRate ) {
 		float rate = 1.0f / emissionRate;
-		emitCounter += dt;
+		
+		//issue #1201, prevent bursts of particles, due to too high emitCounter
+		if (particleCount < totalParticles)
+			emitCounter += dt; 
+		
 		while( particleCount < totalParticles && emitCounter > rate ) {
 			[self addParticle];
 			emitCounter -= rate;
 		}
 
 		elapsed += dt;
+
 		if(duration != -1 && duration < elapsed)
 			[self stopSystem];
 	}
@@ -618,14 +632,11 @@
 
 -(void) setTexture:(CCTexture2D*) texture
 {
-	texture_ = [texture retain];
+	if( texture_ != texture ) {
+		[texture_ release];
+		texture_ = [texture retain];
 
-	// If the new texture has No premultiplied alpha, AND the blendFunc hasn't been changed, then update it
-	if( texture_ && ! [texture hasPremultipliedAlpha] &&
-	   ( blendFunc_.src == CC_BLEND_SRC && blendFunc_.dst == CC_BLEND_DST ) ) {
-
-		blendFunc_.src = GL_SRC_ALPHA;
-		blendFunc_.dst = GL_ONE_MINUS_SRC_ALPHA;
+		[self updateBlendFunc];
 	}
 }
 
@@ -656,6 +667,26 @@
 -(BOOL) blendAdditive
 {
 	return( blendFunc_.src == GL_SRC_ALPHA && blendFunc_.dst == GL_ONE);
+}
+
+-(void) setBlendFunc:(ccBlendFunc)blendFunc
+{
+	if( blendFunc_.src != blendFunc.src || blendFunc_.dst != blendFunc.dst ) {
+		blendFunc_ = blendFunc;
+		[self updateBlendFunc];
+	}
+}
+#pragma mark ParticleSystem - Total Particles Property
+
+- (void) setTotalParticles:(NSUInteger)tp
+{
+    NSAssert( tp <= allocatedParticles, @"Particle: resizing particle array only supported for quads");
+    totalParticles = tp;
+}
+
+- (NSUInteger) totalParticles
+{
+    return totalParticles;
 }
 
 #pragma mark ParticleSystem - Properties of Gravity Mode
@@ -850,6 +881,26 @@
 {
 	transformSystemDirty_ = YES;
 	[super setScaleY:newScaleY];
+}
+
+#pragma mark Particle - Helpers
+
+-(void) updateBlendFunc
+{
+	NSAssert(! batchNode_, @"Can't change blending functions when the particle is being batched");
+
+	BOOL premultiplied = [texture_ hasPremultipliedAlpha];
+
+	opacityModifyRGB_ = NO;
+
+	if( texture_ && ( blendFunc_.src == CC_BLEND_SRC && blendFunc_.dst == CC_BLEND_DST ) ) {
+		if( premultiplied )
+			opacityModifyRGB_ = YES;
+		else {
+			blendFunc_.src = GL_SRC_ALPHA;
+			blendFunc_.dst = GL_ONE_MINUS_SRC_ALPHA;
+		}
+	}
 }
 
 

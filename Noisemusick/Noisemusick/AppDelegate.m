@@ -19,6 +19,8 @@
 
 @synthesize window=window_, navController=navController_, director=director_;
 @synthesize audioController = _audioController;
+@synthesize audiobusController = _audiobusController;
+@synthesize audiobusAudioUnitWrapper = _audiobusAudioUnitWrapper;
 
 void lookup_tilde_setup(); 
 void kink_tilde_setup();
@@ -30,7 +32,7 @@ void tanh_tilde_setup();
 {
     current_item = 0;
     
-    if (IS_IPAD()) {
+    if (IS_IPAD) {
         THUMBW = 789;
         THUMBH = 539;
         PADW = 40;
@@ -38,6 +40,19 @@ void tanh_tilde_setup();
         SCREEN_CENTER_Y = 384;
         BUTTON_Y = 60;
         ABOUT_IMAGE_WIDTH = 1000;
+        HELP_SCREEN_H = 1394;
+        INFO_ICON_H = 181;
+    } else if (IS_IPHONE_5) {
+            THUMBW = 370;
+            THUMBH = 253;
+            PADW = 40;
+            SCREEN_CENTER_X = 284;
+            SCREEN_CENTER_Y = 160;
+            BUTTON_Y = 30;
+            ABOUT_IMAGE_WIDTH = 1000;
+            HELP_SCREEN_H = 654;
+            INFO_ICON_H = 86;
+
     } else {
         THUMBW = 370;
         THUMBH = 253;
@@ -46,6 +61,8 @@ void tanh_tilde_setup();
         SCREEN_CENTER_Y = 160;
         BUTTON_Y = 30;
         ABOUT_IMAGE_WIDTH = 1000;
+        HELP_SCREEN_H = 654;
+        INFO_ICON_H = 86;
     }
     
     // Turn off idle timer
@@ -67,6 +84,9 @@ void tanh_tilde_setup();
 	director_ = (CCDirectorIOS*) [CCDirector sharedDirector];
 
 	director_.wantsFullScreenLayout = YES;
+    
+    // enable multi touch
+    [glView setMultipleTouchEnabled:YES];
     
     // Display FSP and SPF
 	[director_ setDisplayStats:NO];
@@ -93,9 +113,8 @@ void tanh_tilde_setup();
 	navController_ = [[UINavigationController alloc] initWithRootViewController:director_];
 	navController_.navigationBarHidden = YES;
 
-	// set the Navigation Controller as the root view controller
-//	[window_ setRootViewController:rootViewController_];
-	[window_ addSubview:navController_.view];
+    // set the Navigation Controller as the root view controller
+	[window_ setRootViewController:navController_];
 
 	// make main window visible
 	[window_ makeKeyAndVisible];
@@ -107,18 +126,24 @@ void tanh_tilde_setup();
 	// You can change anytime.
 	[CCTexture2D setDefaultAlphaPixelFormat:kCCTexture2DPixelFormat_RGBA8888];
 
-	// When in iPad / RetinaDisplay mode, CCFileUtils will append the "-ipad" / "-hd" to all loaded files
-	// If the -ipad  / -hdfile is not found, it will load the non-suffixed version
-	[CCFileUtils setiPadSuffix:@"-ipad"];			// Default on iPad is "" (empty string)
-	[CCFileUtils setRetinaDisplaySuffix:@"-hd"];	// Default on RetinaDisplay is "-hd"
-
+	// If the 1st suffix is not found and if fallback is enabled then fallback suffixes are going to searched. If none is found, it will try with the name without suffix.
+	// On iPad HD  : "-ipadhd", "-ipad",  "-hd"
+	// On iPad     : "-ipad", "-hd"
+	// On iPhone HD: "-hd"
+	CCFileUtils *sharedFileUtils = [CCFileUtils sharedFileUtils];
+	[sharedFileUtils setEnableFallbackSuffixes:NO];				// Default: NO. No fallback suffixes are going to be used
+	[sharedFileUtils setiPhoneRetinaDisplaySuffix:@"-hd"];		// Default on iPhone RetinaDisplay is "-hd"
+	[sharedFileUtils setiPadSuffix:@"-ipad"];					// Default on iPad is "ipad"
+	[sharedFileUtils setiPadRetinaDisplaySuffix:@"-ipadhd"];	// Default on iPad RetinaDisplay is "-ipadhd"
+    
 	// Assume that PVR images have premultiplied alpha
 	[CCTexture2D PVRImagesHavePremultipliedAlpha:YES];
     
     _audioController = [[PdAudioController alloc] init];
-    if ([self.audioController configureAmbientWithSampleRate:44100 
-                                              numberChannels:2 
-                                               mixingEnabled:YES] != PdAudioOK) {
+    if ([self.audioController configurePlaybackWithSampleRate:44100
+                                               numberChannels:2
+                                                 inputEnabled:NO
+                                                mixingEnabled:YES] != PdAudioOK) {
         NSLog(@"failed to initialize audio components");
     }
     lookup_tilde_setup();
@@ -126,6 +151,25 @@ void tanh_tilde_setup();
     gate_setup();
     comb_tilde_setup();
     tanh_tilde_setup();
+    
+    self.audioController.active = YES;
+    
+    // Turn on Audiobus support
+    self.audiobusController = [[[ABAudiobusController alloc]
+                                initWithAppLaunchURL:[NSURL URLWithString:@"noisemusick.audiobus://"]
+                        apiKey:@"MCoqKk5vaXNlbXVzaWNrKioqbm9pc2VtdXNpY2suYXVkaW9idXM6Ly8=:CrOIuVYViTv/VJlBOfKYuA/XaZZJ6GFWNKIucvkha1iYMYAbGvfoW1YPR11gdsOt+JMzIJlxo7RgxcLTflZRfmDGJBZaX8dlRhkjIpQwhFYO4ZcIkCHJqc0+MbHW7O2K"]
+                               autorelease];
+    // May need this if menus collide:
+    //self.audiobusController.connectionPanelPosition = ABAudiobusConnectionPanelPositionLeft;
+    
+    ABOutputPort *output = [self.audiobusController addOutputPortNamed:@"Audio Output"
+                                                                 title:NSLocalizedString(@"Main App Output", @"")];
+    
+    self.audiobusAudioUnitWrapper = [[[ABAudiobusAudioUnitWrapper alloc]
+                                      initWithAudiobusController:self.audiobusController
+                                      audioUnit:_audioController.audioUnit.audioUnit
+                                      output:output
+                                      input:nil] autorelease];
     
     void *ptr = [PdBase openFile:@"pd-Noisemusick.pd"
                             path:[[NSBundle mainBundle] resourcePath]];
@@ -142,11 +186,16 @@ void tanh_tilde_setup();
 	return YES;
 }
 
-// Supported orientations: Landscape. Customize it for your own needs
+- (NSUInteger) supportedInterfaceOrientations
+{
+    return UIInterfaceOrientationMaskLandscape;
+}
+
+// NOT CALLED IN iOS6?? Supported orientations: Landscape. Customize it for your own needs
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
 	return UIInterfaceOrientationIsLandscape(interfaceOrientation);
-    //return NO;
+    //return YES;
 }
 
 -(void) turnOffSound {
@@ -162,7 +211,8 @@ void tanh_tilde_setup();
 {
     // Turn on idle timer
     [[UIApplication sharedApplication] setIdleTimerDisabled:NO];
-    self.audioController.active = NO;
+    if (holdOn == 0)
+        self.audioController.active = NO;
 	if( [navController_ visibleViewController] == director_ )
 		[director_ pause];
 }
@@ -171,7 +221,8 @@ void tanh_tilde_setup();
 -(void) applicationDidBecomeActive:(UIApplication *)application
 {
     self.audioController.active = YES;
-	if( [navController_ visibleViewController] == director_ )
+
+ 	if( [navController_ visibleViewController] == director_ )
 		[director_ resume];
 }
 

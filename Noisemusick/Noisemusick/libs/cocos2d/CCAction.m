@@ -56,13 +56,13 @@
 
 -(void) dealloc
 {
-	//CCLOGINFO(@"cocos2d: deallocing %@", self);
+	CCLOGINFO(@"cocos2d: deallocing %@", self);
 	[super dealloc];
 }
 
 -(NSString*) description
 {
-	return [NSString stringWithFormat:@"<%@ = %08X | Tag = %i>", [self class], self, tag_];
+	return [NSString stringWithFormat:@"<%@ = %p | Tag = %ld>", [self class], self, (long)tag_];
 }
 
 -(id) copyWithZone: (NSZone*) zone
@@ -89,12 +89,12 @@
 
 -(void) step: (ccTime) dt
 {
-	NSLog(@"[Action step]. override me");
+	CCLOG(@"[Action step]. override me");
 }
 
 -(void) update: (ccTime) time
 {
-	NSLog(@"[Action update]. override me");
+	CCLOG(@"[Action update]. override me");
 }
 @end
 
@@ -186,16 +186,16 @@
 @synthesize speed=speed_;
 @synthesize innerAction=innerAction_;
 
-+(id) actionWithAction: (CCActionInterval*) action speed:(float)r
++(id) actionWithAction: (CCActionInterval*) action speed:(float)value
 {
-	return [[[self alloc] initWithAction: action speed:r] autorelease];
+	return [[[self alloc] initWithAction: action speed:value] autorelease];
 }
 
--(id) initWithAction: (CCActionInterval*) action speed:(float)r
+-(id) initWithAction: (CCActionInterval*) action speed:(float)value
 {
 	if( (self=[super init]) ) {
 		self.innerAction = action;
-		speed_ = r;
+		speed_ = value;
 	}
 	return self;
 }

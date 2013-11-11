@@ -63,7 +63,7 @@
 
 -(void) update: (ccTime) t
 {
-	// ignore
+	// nothing
 }
 
 -(CCFiniteTimeAction*) reverse
@@ -78,9 +78,8 @@
 #pragma mark CCShow
 
 @implementation CCShow
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
 	((CCNode *)target_).visible = YES;
 }
 
@@ -96,9 +95,8 @@
 #pragma mark CCHide
 
 @implementation CCHide
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
 	((CCNode *)target_).visible = NO;
 }
 
@@ -114,9 +112,8 @@
 #pragma mark CCToggleVisibility
 
 @implementation CCToggleVisibility
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
 	((CCNode *)target_).visible = !((CCNode *)target_).visible;
 }
 @end
@@ -140,10 +137,9 @@
 	return self;
 }
 
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
-	[(CCSprite*)aTarget setFlipX:flipX];
+	[(CCSprite*)target_ setFlipX:flipX];
 }
 
 -(CCFiniteTimeAction*) reverse
@@ -177,10 +173,9 @@
 	return self;
 }
 
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
-	[(CCSprite*)aTarget setFlipY:flipY];
+	[(CCSprite*)target_ setFlipY:flipY];
 }
 
 -(CCFiniteTimeAction*) reverse
@@ -221,9 +216,8 @@
 	return copy;
 }
 
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
 	((CCNode *)target_).position = position;
 }
 
@@ -254,11 +248,10 @@
 
 -(NSString*) description
 {
-	return [NSString stringWithFormat:@"<%@ = %08X | Tag = %i | target = %@ | selector = %@>",
+	return [NSString stringWithFormat:@"<%@ = %p | Tag = %ld | selector = %@>",
 			[self class],
 			self,
-			tag_,
-			[targetCallback_ class],
+			(long)tag_,
 			NSStringFromSelector(selector_)
 			];
 }
@@ -275,9 +268,8 @@
 	return copy;
 }
 
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
 	[self execute];
 }
 
@@ -409,9 +401,8 @@
 	return copy;
 }
 
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
 	[self execute];
 }
 
@@ -451,9 +442,8 @@
 	return copy;
 }
 
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
 	[self execute];
 }
 
@@ -497,9 +487,8 @@
 	return copy;
 }
 
--(void) startWithTarget:(id)aTarget
+-(void) update:(ccTime)time
 {
-	[super startWithTarget:aTarget];
 	[self execute];
 }
 

@@ -55,21 +55,31 @@
  *		CCLOGERROR() will be enabled
  *		CCLOGINFO()	will be enabled
  */
+
+
+#define __CCLOGWITHFUNCTION(s, ...) \
+NSLog(@"%s : %@",__FUNCTION__,[NSString stringWithFormat:(s), ##__VA_ARGS__])
+
+#define __CCLOG(s, ...) \
+NSLog(@"%@",[NSString stringWithFormat:(s), ##__VA_ARGS__])
+
+
 #if !defined(COCOS2D_DEBUG) || COCOS2D_DEBUG == 0
 #define CCLOG(...) do {} while (0)
+#define CCLOGWARN(...) do {} while (0)
 #define CCLOGINFO(...) do {} while (0)
-#define CCLOGERROR(...) do {} while (0)
 
 #elif COCOS2D_DEBUG == 1
-#define CCLOG(...) NSLog(__VA_ARGS__)
-#define CCLOGERROR(...) NSLog(__VA_ARGS__)
+#define CCLOG(...) __CCLOG(__VA_ARGS__)
+#define CCLOGWARN(...) __CCLOGWITHFUNCTION(__VA_ARGS__)
 #define CCLOGINFO(...) do {} while (0)
 
 #elif COCOS2D_DEBUG > 1
-#define CCLOG(...) NSLog(__VA_ARGS__)
-#define CCLOGERROR(...) NSLog(__VA_ARGS__)
-#define CCLOGINFO(...) NSLog(__VA_ARGS__)
+#define CCLOG(...) __CCLOG(__VA_ARGS__)
+#define CCLOGWARN(...) __CCLOGWITHFUNCTION(__VA_ARGS__)
+#define CCLOGINFO(...) __CCLOG(__VA_ARGS__)
 #endif // COCOS2D_DEBUG
+
 
 /** @def CC_SWAP
 simple macro that swaps 2 variables
@@ -113,7 +123,6 @@ default gl blend src function. Compatible with premultiplied alpha images.
 	- It will create a UIWindow and it will assign it the 'window_' ivar. 'window_' must be declared before calling this marcro.
     - It will create a UINavigationController and it will assign it the 'navigationController_' ivar. 'navController_' must be declared before using this macro.
     - The director_ will be the root view controller of the navController.
-    - It will try to enable Retina Display for the Director
 	- It will connect the CCGLView to the Director
 	- It will connect the UINavController view to the UIWindow.
 	- It will try to run at 60 FPS.
@@ -145,7 +154,8 @@ do	{																							\
 	[director_ setView:__glView];																\
 	[director_ setDelegate:self];																\
 	director_.wantsFullScreenLayout = YES;														\
-	[director_ enableRetinaDisplay:YES];														\
+	if( ! [director_ enableRetinaDisplay:YES] )													\
+		CCLOG(@"Retina Display Not supported");													\
 	navController_ = [[UINavigationController alloc] initWithRootViewController:director_];		\
 	navController_.navigationBarHidden = YES;													\
 	[window_ addSubview:navController_.view];													\
@@ -179,8 +189,9 @@ do	{																							\
 #define CC_NODE_DRAW_SETUP()																	\
 do {																							\
 	ccGLEnable( glServerState_ );																\
-	ccGLUseProgram( shaderProgram_->program_ );													\
-	ccGLUniformModelViewProjectionMatrix( shaderProgram_ );										\
+    NSAssert1(shaderProgram_, @"No shader program set for node: %@", self);						\
+	[shaderProgram_ use];																		\
+	[shaderProgram_ setUniformForModelViewProjectionMatrix];									\
 } while(0)
 
 
@@ -325,3 +336,18 @@ CGSizeMake( (__size_in_points__).width * CC_CONTENT_SCALE_FACTOR(), (__size_in_p
 #define CC_ARC_RELEASE(value)	[value release]
 #define CC_ARC_UNSAFE_RETAINED
 #endif
+
+/** @def CC_INCREMENT_GL_DRAWS_BY_ONE
+ Increments the GL Draws counts by one.
+ The number of calls per frame are displayed on the screen when the CCDirector's stats are enabled.
+ */
+extern NSUInteger __ccNumberOfDraws;
+#define CC_INCREMENT_GL_DRAWS(__n__) __ccNumberOfDraws += __n__
+
+/*******************/
+/** Notifications **/
+/*******************/
+/** @def CCAnimationFrameDisplayedNotification
+ Notification name when a CCSpriteFrame is displayed
+ */
+#define CCAnimationFrameDisplayedNotification @"CCAnimationFrameDisplayedNotification"

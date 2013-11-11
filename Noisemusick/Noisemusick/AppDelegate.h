@@ -17,6 +17,7 @@
 #import "cocos2d.h"
 #import "PdAudioController.h"
 #import "PdDispatcher.h"
+#import "Audiobus.h"
 
 @interface AppController : NSObject <UIApplicationDelegate, CCDirectorDelegate>
 {
@@ -29,6 +30,8 @@
 @property (nonatomic, retain) UIWindow *window;
 @property (readonly) UINavigationController *navController;
 @property (readonly) CCDirectorIOS *director;
+@property (strong, nonatomic) ABAudiobusController *audiobusController;
+@property (strong, nonatomic) ABAudiobusAudioUnitWrapper *audiobusAudioUnitWrapper;
 -(void) turnOffSound;
 -(void) turnOnSound;
 //- (void) copyDemoPatchesToUserDomain;
